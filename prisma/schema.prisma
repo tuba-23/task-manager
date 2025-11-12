@@ -1,0 +1,173 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+    provider = "prisma-client-js"
+    output   = "../src/generated/prisma"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// Enum for the possible statuses of a task.
+
+enum Status {
+    todo
+    inprogress
+    done
+}
+
+// Enum for the possible priorities of a task.
+
+enum Priority {
+    low
+    medium
+    high
+}
+
+// Model for Task Groups.
+
+model Group {
+    id   String @id @default(cuid())
+    name String
+
+    // A group can have many tasks.
+    tasks Task[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+// Model for Task Categories.
+
+model Category {
+    id    String @id @default(cuid())
+    name  String
+    color String
+
+    // A category can be associated with many tasks.
+    tasks Task[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+// Model for Tasks.
+
+model Task {
+    id          String    @id @default(cuid())
+    title       String
+    description String? // Optional field
+    status      Status    @default(todo)
+    date        DateTime? // Optional field
+    priority    Priority? // Optional field
+
+    // --- Relations ---
+    // A task belongs to one group.
+    group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+    groupId String?
+
+    // A task can optionally belong to one category.
+    category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+    categoryId String?
+
+    user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+    userId String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model User {
+    id            String       @id
+    name          String
+    email         String
+    emailVerified Boolean      @default(false)
+    image         String?
+    createdAt     DateTime     @default(now())
+    updatedAt     DateTime     @default(now()) @updatedAt
+    sessions      Session[]
+    accounts      Account[]
+    Task          Task[]
+    ChatThread    ChatThread[]
+
+    @@unique([email])
+    @@map("user")
+}
+
+model Session {
+    id        String   @id
+    expiresAt DateTime
+    token     String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    ipAddress String?
+    userAgent String?
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([token])
+    @@map("session")
+}
+
+model Account {
+    id                    String    @id
+    accountId             String
+    providerId            String
+    userId                String
+    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?
+    createdAt             DateTime  @default(now())
+    updatedAt             DateTime  @updatedAt
+
+    @@map("account")
+}
+
+model Verification {
+    id         String   @id
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @default(now()) @updatedAt
+
+    @@map("verification")
+}
+
+model ChatThread {
+    id    String  @id @default(uuid())
+    title String?
+
+    user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+    userId String?
+
+    thread Json
+    state  String? @db.Text
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    aiResponses AiResponse[]
+}
+
+model AiResponse {
+    id           String      @id @default(uuid())
+    chatThreadId String?
+    chatThread   ChatThread? @relation(fields: [chatThreadId], references: [id])
+
+    response  Json
+    createdAt DateTime @default(now())
+
+    @@map("ai_response")
+}
